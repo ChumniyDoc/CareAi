@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 
 import httpx
@@ -50,3 +51,14 @@ class OllamaClient:
         finally:
             if self._client is None:
                 await client.aclose()
+
+    async def generate_with_retry(self, prompt: str, retries: int = 2) -> str:
+        delay = 0.5
+        for attempt in range(retries + 1):
+            try:
+                return await self.generate(prompt)
+            except httpx.HTTPError:
+                if attempt >= retries:
+                    raise
+                await asyncio.sleep(delay)
+                delay *= 2

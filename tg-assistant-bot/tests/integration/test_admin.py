@@ -22,15 +22,20 @@ def test_admin_endpoints(database_url):
     )
     engine = create_engine(settings.database_url)
     session_factory = create_session_factory(engine)
-    app = create_app(session_factory, settings, scheduler_running=lambda: True, llm_client=None)
+    scheduler = type("Scheduler", (), {"running": True, "get_jobs": lambda self: []})()
+    app = create_app(session_factory, settings, scheduler=scheduler, llm_client=None)
 
     with TestClient(app) as client:
+        root = client.get("/", allow_redirects=False)
+        assert root.status_code in (302, 307)
         health = client.get("/healthz")
         assert health.status_code == 200
         ready = client.get("/readyz")
         assert ready.status_code == 200
 
         headers = _auth_headers("admin", "admin")
+        admin = client.get("/admin", headers=headers)
+        assert admin.status_code == 200
         stats = client.get("/admin/stats.json", headers=headers)
         assert stats.status_code == 200
         selftest = client.post("/admin/selftest", headers=headers)

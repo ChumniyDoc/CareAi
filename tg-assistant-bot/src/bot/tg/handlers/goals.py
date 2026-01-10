@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from aiogram import Router
+from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,11 +12,12 @@ from bot.db import repo
 router = Router()
 
 
-@router.message(Command("goal_add"))
-async def goal_add(message: Message, session: AsyncSession) -> None:
+async def _goal_add(message: Message, session: AsyncSession) -> None:
     if not message.text:
         return
     text = message.text.replace("/goal_add", "", 1).strip()
+    if text == message.text:
+        text = message.text.replace("goal_add", "", 1).strip()
     if not text:
         await message.answer("Формат: /goal_add <название> [дата]")
         return
@@ -34,6 +35,16 @@ async def goal_add(message: Message, session: AsyncSession) -> None:
     goal = await repo.create_goal(session, user.id, title, deadline)
     await session.commit()
     await message.answer(f"Цель #{goal.id} добавлена.")
+
+
+@router.message(Command("goal_add"))
+async def goal_add(message: Message, session: AsyncSession) -> None:
+    await _goal_add(message, session)
+
+
+@router.message(F.text.regexp(r"^(?i)goal_add(\\s|$)"))
+async def goal_add_alias(message: Message, session: AsyncSession) -> None:
+    await _goal_add(message, session)
 
 
 @router.message(Command("goal_list"))

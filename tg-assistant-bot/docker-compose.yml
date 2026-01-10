@@ -21,12 +21,12 @@ services:
     environment:
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b-instruct}
     healthcheck:
-      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:11434/api/tags >/dev/null 2>&1 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
     entrypoint: ["/bin/sh", "-c"]
-    command: "ollama serve & sleep 2; ollama pull ${OLLAMA_MODEL}; wait"
+    command: "ollama serve & until wget -qO- http://localhost:11434/api/tags >/dev/null 2>&1; do sleep 1; done; ollama pull ${OLLAMA_MODEL} || echo 'ollama pull failed'; wait"
     restart: unless-stopped
 
   app:

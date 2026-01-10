@@ -3,13 +3,16 @@ from __future__ import annotations
 from aiogram import Router
 
 from bot.tg.handlers import (
+    admin_debug,
     dashboard,
     export_delete,
+    fallback,
     goals,
     habits,
     health_import,
     insights,
     mood,
+    profile,
     schedule,
     settings,
     start_help,
@@ -18,6 +21,7 @@ from bot.tg.handlers import (
 
 router = Router()
 router.include_router(start_help.router)
+router.include_router(profile.router)
 router.include_router(tasks.router)
 router.include_router(goals.router)
 router.include_router(mood.router)
@@ -28,3 +32,5 @@ router.include_router(dashboard.router)
 router.include_router(export_delete.router)
 router.include_router(settings.router)
 router.include_router(insights.router)
+router.include_router(admin_debug.router)
+router.include_router(fallback.router)

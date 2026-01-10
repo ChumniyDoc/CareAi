@@ -7,13 +7,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.db import models, repo
 from bot.llm.client import OllamaClient
-from bot.llm.parser import LlmResult, parse_llm_response
+from bot.llm.parser import IntentResult, LlmResult, parse_intent_response, parse_llm_response
 
 
 def build_prompt(context: dict, user_text: str) -> str:
     return (
         "Ты помощник бота. Верни JSON строго по схеме: "
         "{\"response\":\"...\",\"proposals\":[{\"tool\":\"...\",\"args\":{},\"reason\":\"...\"}]}. "
+        "Никакого markdown. Ответ краткий. "
+        f"Контекст: {context}. Запрос пользователя: {user_text}"
+    )
+
+
+def build_intent_prompt(context: dict, user_text: str) -> str:
+    return (
+        "Верни JSON строго по схеме: "
+        "{\"intent\":\"chat|task_proposal|note_store|mood_proposal|habit_proposal|goal_proposal|unknown\","
+        "\"reply\":\"...\",\"proposals\":[{\"tool\":\"...\",\"args\":{},\"reason\":\"...\"}]}. "
         "Никакого markdown. Ответ краткий. "
         f"Контекст: {context}. Запрос пользователя: {user_text}"
     )
@@ -52,5 +62,18 @@ async def run_llm(
 ) -> LlmResult:
     context = await build_context(session, user_id, context_days)
     prompt = build_prompt(context, user_text)
-    raw = await client.generate(prompt)
+    raw = await client.generate_with_retry(prompt)
     return parse_llm_response(raw)
+
+
+async def run_intent(
+    session: AsyncSession,
+    client: OllamaClient,
+    user_id: int,
+    user_text: str,
+    context_days: int,
+) -> IntentResult:
+    context = await build_context(session, user_id, context_days)
+    prompt = build_intent_prompt(context, user_text)
+    raw = await client.generate_with_retry(prompt)
+    return parse_intent_response(raw)

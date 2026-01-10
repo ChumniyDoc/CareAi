@@ -62,12 +62,34 @@ class UserSettings(Base):
     weekly_review_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class UserProfile(Base):
+    __tablename__ = "user_profiles"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255))
+    height_cm: Mapped[int | None] = mapped_column(Integer)
+    weight_kg: Mapped[float | None] = mapped_column(Float)
+    timezone: Mapped[str] = mapped_column(String(64), default="Asia/Almaty")
+
+
 class UserState(Base):
     __tablename__ = "user_states"
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
     state: Mapped[str] = mapped_column(String(64))
     updated_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AppErrorLog(Base):
+    __tablename__ = "app_error_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ts: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    module: Mapped[str] = mapped_column(String(255))
+    message: Mapped[str] = mapped_column(Text)
+    stacktrace: Mapped[str] = mapped_column(Text)
+    context_json: Mapped[dict | None] = mapped_column(JSONB)
 
 
 class InboxItem(Base):

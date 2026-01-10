@@ -40,6 +40,8 @@ Telegram-бот «персональная операционная систем
 - `/health` — подсказка по импорту Apple Health
 - `/export` — выгрузка
 - `/delete_data` — удаление
+- `/profile` — профиль
+- `/debug_last_error` — последняя ошибка (для администратора)
 
 ## Примеры ответов (текст)
 - «Создал задачу #3 из сообщения.»
@@ -56,7 +58,8 @@ pytest
 ```
 
 ## Админка
-Веб-панель доступна на `http://localhost:8080/admin` (basic auth).
+Веб-панель доступна на `http://localhost:8080/` (редирект на `/admin`, basic auth).
+Проверь, что `ADMIN_USER` и `ADMIN_PASSWORD` заданы в `.env`.
 
 ## Настройки
 Через `.env`:
@@ -65,6 +68,7 @@ pytest
 - `TZ` (по умолчанию Europe/Moscow)
 - `WEEKLY_REVIEW_TIME`
 - `ADMIN_USER`, `ADMIN_PASSWORD`
+- `ADMIN_TELEGRAM_ID` (для /debug_last_error)
 - `LLM_ENABLED` (по умолчанию false)
 - `OLLAMA_MODEL` (например `qwen2.5:14b-instruct`)
 
@@ -72,6 +76,12 @@ pytest
 - Локальный LLM запускается в сервисе `ollama`.
 - Модель автоматически скачивается при первом запуске.
 - По умолчанию используется `qwen2.5:7b-instruct`, можно изменить через `OLLAMA_MODEL`.
+
+## Smoke тест
+```bash
+make smoke
+```
+Скрипт проверяет `/`, `/healthz`, `/readyz`, `/admin/stats.json`, а также доступность Ollama и простой запрос к БД.
 
 ## CI
 GitHub Actions запускает линт и тесты при пуше и PR.

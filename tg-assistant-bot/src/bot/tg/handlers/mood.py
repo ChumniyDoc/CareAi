@@ -25,10 +25,19 @@ def _scale_keyboard(prefix: str, max_value: int = 10) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[buttons])
 
 
-@router.message(Command("mood"))
-async def mood_start(message: Message, state: FSMContext) -> None:
+async def _start_mood(message: Message, state: FSMContext) -> None:
     await state.set_state(MoodStates.mood)
     await message.answer("Оцени настроение 1-10:", reply_markup=_scale_keyboard("mood"))
+
+
+@router.message(Command("mood"))
+async def mood_start(message: Message, state: FSMContext) -> None:
+    await _start_mood(message, state)
+
+
+@router.message(F.text.regexp(r"^(?i)mood(\\s|$)"))
+async def mood_alias(message: Message, state: FSMContext) -> None:
+    await _start_mood(message, state)
 
 
 @router.callback_query(F.data.startswith("mood:"))

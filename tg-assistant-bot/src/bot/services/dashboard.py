@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import io
+
+import matplotlib
 import matplotlib.pyplot as plt
+
+matplotlib.use("Agg")
 
 
 def build_simple_chart(title: str, labels: list[str], values: list[float]) -> bytes:

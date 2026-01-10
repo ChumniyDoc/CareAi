@@ -6,13 +6,14 @@ from collections.abc import AsyncIterator
 
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.config import Settings
+from bot.db import repo
 from bot.llm.client import OllamaClient
 from bot.llm.state import LLM_STATUS
 from bot.status import BOT_STATUS
@@ -27,7 +28,11 @@ def _auth_dependency(settings: Settings):
         if not secrets.compare_digest(credentials.username, expected_user) or not secrets.compare_digest(
             credentials.password, expected_password
         ):
-            raise HTTPException(status_code=401, detail="Unauthorized")
+            raise HTTPException(
+                status_code=401,
+                detail="Unauthorized",
+                headers={"WWW-Authenticate": "Basic"},
+            )
         return credentials.username
 
     return verify
@@ -36,7 +41,7 @@ def _auth_dependency(settings: Settings):
 def create_app(
     session_factory,
     settings: Settings,
-    scheduler_running: callable,
+    scheduler,
     llm_client: OllamaClient | None,
 ) -> FastAPI:
     app = FastAPI()
@@ -45,6 +50,10 @@ def create_app(
     async def get_session() -> AsyncIterator[AsyncSession]:
         async with session_factory() as session:
             yield session
+
+    @app.get("/")
+    async def root() -> RedirectResponse:
+        return RedirectResponse(url="/admin")
 
     @app.get("/healthz")
     async def healthz() -> dict:
@@ -58,14 +67,14 @@ def create_app(
 
     @app.get("/admin", response_class=HTMLResponse)
     async def admin_page(
-        request: Request,
         user: str = Depends(auth_dependency),
         session: AsyncSession = Depends(get_session),
     ) -> str:
-        stats = await build_stats(session, settings, scheduler_running, llm_client)
+        stats = await build_stats(session, settings, scheduler, llm_client)
         rows_html = "".join(
             f"<tr><td>{name}</td><td>{value}</td></tr>" for name, value in stats["table_counts"].items()
         )
+        jobs_html = ", ".join(stats.get("scheduler_jobs", [])) or "Нет"
         errors_html = "<br/>".join(stats["recent_errors"]) or "Нет"
         return (
             "<html><body>"
@@ -81,8 +90,11 @@ def create_app(
             f"<p>DB: {stats['status']['db']}</p>"
             f"<p>Migrations: {stats['status']['migrations']}</p>"
             f"<p>Scheduler: {stats['status']['scheduler']}</p>"
+            f"<p>Scheduler jobs: {jobs_html}</p>"
             f"<p>Telegram polling: {stats['status']['telegram']}</p>"
+            f"<p>Telegram last update: {stats['status']['telegram_last_update']}</p>"
             f"<p>LLM: {stats['status']['llm']}</p>"
+            f"<p>LLM reachable: {stats['status']['llm_reachable']}</p>"
             f"<p>LLM last success: {stats['status']['llm_last_success']}</p>"
             "<h2>Settings</h2>"
             f"<p>TZ: {stats['settings']['tz']}</p>"
@@ -100,7 +112,7 @@ def create_app(
         user: str = Depends(auth_dependency),
         session: AsyncSession = Depends(get_session),
     ) -> JSONResponse:
-        result = await run_selftest(session, settings, scheduler_running, llm_client)
+        result = await run_selftest(session, settings, scheduler, llm_client)
         return JSONResponse(result)
 
     @app.get("/admin/stats.json")
@@ -108,7 +120,7 @@ def create_app(
         user: str = Depends(auth_dependency),
         session: AsyncSession = Depends(get_session),
     ) -> JSONResponse:
-        stats = await build_stats(session, settings, scheduler_running, llm_client)
+        stats = await build_stats(session, settings, scheduler, llm_client)
         return JSONResponse(stats)
 
     return app
@@ -131,7 +143,7 @@ async def _check_migrations(session: AsyncSession) -> None:
 async def build_stats(
     session: AsyncSession,
     settings: Settings,
-    scheduler_running: callable,
+    scheduler,
     llm_client: OllamaClient | None,
 ) -> dict:
     table_counts = {}
@@ -159,18 +171,34 @@ async def build_stats(
     except Exception:
         db_size = "n/a"
 
+    llm_reachable = None
+    if settings.llm_enabled:
+        llm_reachable = LLM_STATUS.last_success_at is not None
+
     status = {
         "db": "ok",
         "migrations": "ok",
-        "scheduler": "running" if scheduler_running() else "stopped",
+        "scheduler": "running" if scheduler.running else "stopped",
         "telegram": "running" if BOT_STATUS.polling_started else "stopped",
+        "telegram_last_update": BOT_STATUS.last_update_at.isoformat()
+        if BOT_STATUS.last_update_at
+        else None,
         "llm": "enabled" if settings.llm_enabled else "disabled",
+        "llm_reachable": llm_reachable,
         "llm_last_success": LLM_STATUS.last_success_at.isoformat() if LLM_STATUS.last_success_at else None,
     }
+
+    recent_errors = []
+    for error in await repo.list_recent_errors(session, limit=50):
+        trimmed = (error.stacktrace or "").splitlines()
+        tail = trimmed[-3:] if trimmed else []
+        snippet = " | ".join(tail)
+        recent_errors.append(f"ERR-{error.id} {error.module}: {error.message} {snippet}")
 
     return {
         "db_size": db_size,
         "table_counts": table_counts,
+        "scheduler_jobs": [job.id for job in scheduler.get_jobs()] if scheduler.running else [],
         "status": status,
         "settings": {
             "tz": settings.tz,
@@ -179,14 +207,14 @@ async def build_stats(
             "llm_provider": settings.llm_provider,
             "llm_model": settings.ollama_model,
         },
-        "recent_errors": [LLM_STATUS.last_error] if LLM_STATUS.last_error else [],
+        "recent_errors": recent_errors or ([LLM_STATUS.last_error] if LLM_STATUS.last_error else []),
     }
 
 
 async def run_selftest(
     session: AsyncSession,
     settings: Settings,
-    scheduler_running: callable,
+    scheduler,
     llm_client: OllamaClient | None,
 ) -> dict:
     results = {}
@@ -202,7 +230,8 @@ async def run_selftest(
     except Exception as exc:
         results["migrations"] = f"fail: {exc}"
 
-    results["scheduler"] = "ok" if scheduler_running() else "stopped"
+    results["scheduler"] = "ok" if scheduler.running else "stopped"
+    results["scheduler_jobs"] = [job.id for job in scheduler.get_jobs()] if scheduler.running else []
 
     try:
         async with session.begin():
@@ -213,7 +242,7 @@ async def run_selftest(
 
     try:
         if settings.llm_enabled and llm_client:
-            text = await llm_client.generate("ping")
+            text = await llm_client.generate_with_retry("ping", retries=1)
             results["llm"] = "ok" if text else "empty"
         else:
             results["llm"] = "skipped"

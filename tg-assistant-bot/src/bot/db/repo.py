@@ -40,6 +40,21 @@ async def add_inbox_item(
     return item
 
 
+async def get_inbox_item_by_message(
+    session: AsyncSession, user_id: int, message_id: int
+) -> models.InboxItem | None:
+    result = await session.execute(
+        select(models.InboxItem).where(
+            models.InboxItem.user_id == user_id, models.InboxItem.message_id == message_id
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def update_inbox_status(session: AsyncSession, item: models.InboxItem, status: str) -> None:
+    item.status = status
+
+
 async def create_task(session: AsyncSession, user_id: int, title: str, due_at: dt.datetime | None) -> models.Task:
     task = models.Task(user_id=user_id, title=title, due_at=due_at)
     session.add(task)
@@ -277,3 +292,71 @@ async def clear_user_state(session: AsyncSession, user_id: int) -> None:
     existing = await get_user_state(session, user_id)
     if existing:
         await session.delete(existing)
+
+
+async def add_error_log(
+    session: AsyncSession,
+    user_id: int | None,
+    module: str,
+    message: str,
+    stacktrace: str,
+    context: dict | None,
+) -> models.AppErrorLog:
+    record = models.AppErrorLog(
+        user_id=user_id,
+        module=module,
+        message=message,
+        stacktrace=stacktrace,
+        context_json=context,
+    )
+    session.add(record)
+    await session.flush()
+    return record
+
+
+async def list_recent_errors(session: AsyncSession, limit: int = 50) -> list[models.AppErrorLog]:
+    result = await session.execute(
+        select(models.AppErrorLog).order_by(models.AppErrorLog.ts.desc()).limit(limit)
+    )
+    return result.scalars().all()
+
+
+async def get_last_error(session: AsyncSession) -> models.AppErrorLog | None:
+    result = await session.execute(
+        select(models.AppErrorLog).order_by(models.AppErrorLog.ts.desc()).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_user_profile(session: AsyncSession, user_id: int) -> models.UserProfile | None:
+    result = await session.execute(
+        select(models.UserProfile).where(models.UserProfile.user_id == user_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def upsert_user_profile(
+    session: AsyncSession,
+    user_id: int,
+    name: str,
+    height_cm: int | None,
+    weight_kg: float | None,
+    timezone: str,
+) -> models.UserProfile:
+    profile = await get_user_profile(session, user_id)
+    if profile:
+        profile.name = name
+        profile.height_cm = height_cm
+        profile.weight_kg = weight_kg
+        profile.timezone = timezone
+        return profile
+    record = models.UserProfile(
+        user_id=user_id,
+        name=name,
+        height_cm=height_cm,
+        weight_kg=weight_kg,
+        timezone=timezone,
+    )
+    session.add(record)
+    await session.flush()
+    return record

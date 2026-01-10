@@ -38,8 +38,7 @@ async def habit_create(message: Message, session: AsyncSession) -> None:
     await message.answer(f"Привычка #{habit.id} создана.")
 
 
-@router.message(Command("habit_log"))
-async def habit_log(message: Message, session: AsyncSession) -> None:
+async def _habit_log(message: Message, session: AsyncSession) -> None:
     user = await repo.get_or_create_user(session, message.from_user.id)
     habits = await repo.list_habits(session, user.id)
     await session.commit()
@@ -49,6 +48,16 @@ async def habit_log(message: Message, session: AsyncSession) -> None:
     buttons = [InlineKeyboardButton(text=habit.name, callback_data=f"habit:{habit.id}") for habit in habits]
     keyboard = InlineKeyboardMarkup(inline_keyboard=[buttons])
     await message.answer("Выбери привычку:", reply_markup=keyboard)
+
+
+@router.message(Command("habit_log"))
+async def habit_log(message: Message, session: AsyncSession) -> None:
+    await _habit_log(message, session)
+
+
+@router.message(F.text.regexp(r"^(?i)habit_log(\\s|$)"))
+async def habit_log_alias(message: Message, session: AsyncSession) -> None:
+    await _habit_log(message, session)
 
 
 @router.callback_query(F.data.startswith("habit:"))

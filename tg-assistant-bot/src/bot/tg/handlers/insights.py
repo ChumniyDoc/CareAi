@@ -37,11 +37,10 @@ def _format_proposals(proposals: list[Proposal]) -> str:
     return "\n".join(lines)
 
 
-@router.message(Command("insights"))
-async def insights(message: Message, session: AsyncSession) -> None:
+async def _handle_insights(message: Message, session: AsyncSession) -> None:
     settings = load_settings()
     if not settings.llm_enabled:
-        await message.answer("LLM отключен. Включи LLM_ENABLED=true в .env")
+        await message.answer("LLM выключена. Включи LLM_ENABLED=true в .env")
         return
     user = await repo.get_or_create_user(session, message.from_user.id)
     client = OllamaClient(
@@ -51,7 +50,13 @@ async def insights(message: Message, session: AsyncSession) -> None:
         temperature=settings.llm_temperature,
         max_output_tokens=settings.llm_max_output_tokens,
     )
-    result = await run_llm(session, client, user.id, "Сделай краткие инсайты", settings.llm_context_days)
+    try:
+        result = await run_llm(
+            session, client, user.id, "Сделай краткие инсайты", settings.llm_context_days
+        )
+    except Exception:
+        await message.answer("LLM недоступна. Попробуй позже.")
+        return
     if result.response:
         await message.answer(result.response)
     if result.proposals:
@@ -72,6 +77,16 @@ async def insights(message: Message, session: AsyncSession) -> None:
         return
     if not result.response:
         await message.answer("Готово.")
+
+
+@router.message(Command("insights"))
+async def insights(message: Message, session: AsyncSession) -> None:
+    await _handle_insights(message, session)
+
+
+@router.message(F.text.regexp(r"^(?i)insights(\\s|$)"))
+async def insights_alias(message: Message, session: AsyncSession) -> None:
+    await _handle_insights(message, session)
 
 
 @router.callback_query(F.data.startswith("llm:approve:"))

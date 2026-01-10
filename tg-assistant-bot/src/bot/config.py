@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     environment: str = "dev"
     admin_user: str = "admin"
     admin_password: str | None = None
+    admin_telegram_id: int | None = None
     llm_enabled: bool = False
     llm_provider: str = "ollama"
     ollama_base_url: str = "http://ollama:11434"

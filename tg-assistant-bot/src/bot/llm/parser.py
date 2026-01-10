@@ -18,6 +18,14 @@ class LlmResult:
     proposals: list[Proposal]
 
 
+@dataclass(slots=True)
+class IntentResult:
+    intent: str
+    reply: str
+    proposals: list[Proposal]
+    valid_json: bool
+
+
 def parse_llm_response(raw_text: str) -> LlmResult:
     if not raw_text:
         return LlmResult(response="", proposals=[])
@@ -35,3 +43,23 @@ def parse_llm_response(raw_text: str) -> LlmResult:
         if tool:
             proposals.append(Proposal(tool=tool, args=args, reason=item.get("reason")))
     return LlmResult(response=response, proposals=proposals)
+
+
+def parse_intent_response(raw_text: str) -> IntentResult:
+    if not raw_text:
+        return IntentResult(intent="chat", reply="", proposals=[], valid_json=True)
+    try:
+        payload = orjson.loads(raw_text)
+    except orjson.JSONDecodeError:
+        return IntentResult(intent="chat", reply=raw_text.strip(), proposals=[], valid_json=False)
+    if not isinstance(payload, dict):
+        return IntentResult(intent="chat", reply=raw_text.strip(), proposals=[], valid_json=False)
+    reply = str(payload.get("reply", "")).strip()
+    intent = str(payload.get("intent", "chat")).strip() or "chat"
+    proposals: list[Proposal] = []
+    for item in payload.get("proposals", []) or []:
+        tool = item.get("tool")
+        args = item.get("args") or {}
+        if tool:
+            proposals.append(Proposal(tool=tool, args=args, reason=item.get("reason")))
+    return IntentResult(intent=intent, reply=reply, proposals=proposals, valid_json=True)
