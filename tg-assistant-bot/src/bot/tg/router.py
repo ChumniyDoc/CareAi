@@ -8,6 +8,7 @@ from bot.tg.handlers import (
     goals,
     habits,
     health_import,
+    insights,
     mood,
     schedule,
     settings,
@@ -26,3 +27,4 @@ router.include_router(health_import.router)
 router.include_router(dashboard.router)
 router.include_router(export_delete.router)
 router.include_router(settings.router)
+router.include_router(insights.router)

@@ -24,6 +24,8 @@ jobs:
     env:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/tg_assistant
       BOT_TOKEN: dummy
+      ADMIN_PASSWORD: admin
+      LLM_ENABLED: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

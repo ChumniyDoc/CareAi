@@ -189,3 +189,69 @@ async def upsert_health_aggregate(session: AsyncSession, aggregate: models.Apple
                 setattr(existing, field, value)
         return
     session.add(aggregate)
+
+
+async def get_user_summary(session: AsyncSession, user_id: int) -> models.UserProfileSummary | None:
+    result = await session.execute(
+        select(models.UserProfileSummary).where(models.UserProfileSummary.user_id == user_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def upsert_user_summary(session: AsyncSession, user_id: int, summary_text: str) -> None:
+    existing = await get_user_summary(session, user_id)
+    if existing:
+        existing.summary_text = summary_text
+        return
+    session.add(models.UserProfileSummary(user_id=user_id, summary_text=summary_text))
+
+
+async def store_llm_interaction(
+    session: AsyncSession,
+    user_id: int,
+    user_text: str,
+    assistant_text: str,
+    tool_calls: list[dict] | None,
+) -> models.LlmInteractionLog:
+    record = models.LlmInteractionLog(
+        user_id=user_id,
+        user_text=user_text,
+        assistant_text=assistant_text,
+        tool_calls_json=tool_calls,
+    )
+    session.add(record)
+    await session.flush()
+    return record
+
+
+async def create_pending_action(
+    session: AsyncSession,
+    user_id: int,
+    tool_name: str,
+    tool_args: dict,
+    reason: str | None,
+    expires_at: dt.datetime | None,
+) -> models.PendingAction:
+    record = models.PendingAction(
+        user_id=user_id,
+        tool_name=tool_name,
+        tool_args_json=tool_args,
+        reason=reason,
+        expires_at=expires_at,
+    )
+    session.add(record)
+    await session.flush()
+    return record
+
+
+async def get_pending_action(session: AsyncSession, action_id: int) -> models.PendingAction | None:
+    result = await session.execute(
+        select(models.PendingAction).where(models.PendingAction.id == action_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def update_pending_action_status(
+    session: AsyncSession, action: models.PendingAction, status: str
+) -> None:
+    action.status = status

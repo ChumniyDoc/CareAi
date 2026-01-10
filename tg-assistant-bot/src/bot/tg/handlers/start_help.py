@@ -16,7 +16,7 @@ async def start(message: Message, session: AsyncSession) -> None:
     await session.commit()
     await message.answer(
         "Привет! Я твой персональный операционный бот. "
-        "Доступные команды: /add, /tasks, /done, /mood, /habit_log, /goal_add, /goal_list, /dashboard."
+        "Доступные команды: /add, /tasks, /done, /mood, /habit_log, /goal_add, /goal_list, /dashboard, /insights."
     )
 
 
@@ -32,6 +32,7 @@ async def help_cmd(message: Message) -> None:
         "/habit_log — лог привычки\n"
         "/goal_add <текст> — цель\n"
         "/dashboard — графики\n"
+        "/insights — краткие инсайты\n"
         "/export — выгрузка\n"
         "/delete_data — удалить данные"
     )

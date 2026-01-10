@@ -17,12 +17,13 @@ Telegram-бот «персональная операционная систем
 - Токен Telegram-бота
 
 ## Быстрый старт
-1. Скопируй `.env.example` → `.env` и укажи BOT_TOKEN.
+1. Скопируй `.env.example` → `.env` и укажи BOT_TOKEN и ADMIN_PASSWORD.
 2. Запусти:
    ```bash
    docker compose up -d --build
    ```
 3. Бот автоматически применит миграции и начнет работу.
+4. При первом старте Ollama скачает модель (это может занять время).
 
 ## Команды (примеры)
 - `/start` — старт
@@ -35,6 +36,7 @@ Telegram-бот «персональная операционная систем
 - `/goal_add Выучить Python 2024-12-31` — цель
 - `/goal_list` — список целей
 - `/dashboard` — графики
+- `/insights` — краткие инсайты от локальной LLM (если включена)
 - `/health` — подсказка по импорту Apple Health
 - `/export` — выгрузка
 - `/delete_data` — удаление
@@ -53,12 +55,23 @@ make test
 pytest
 ```
 
+## Админка
+Веб-панель доступна на `http://localhost:8080/admin` (basic auth).
+
 ## Настройки
 Через `.env`:
 - `BOT_TOKEN`
 - `DATABASE_URL`
 - `TZ` (по умолчанию Europe/Moscow)
 - `WEEKLY_REVIEW_TIME`
+- `ADMIN_USER`, `ADMIN_PASSWORD`
+- `LLM_ENABLED` (по умолчанию false)
+- `OLLAMA_MODEL` (например `qwen2.5:14b-instruct`)
+
+## LLM (Ollama)
+- Локальный LLM запускается в сервисе `ollama`.
+- Модель автоматически скачивается при первом запуске.
+- По умолчанию используется `qwen2.5:7b-instruct`, можно изменить через `OLLAMA_MODEL`.
 
 ## CI
 GitHub Actions запускает линт и тесты при пуше и PR.
