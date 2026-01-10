@@ -7,6 +7,7 @@ import logging
 import uvicorn
 from aiogram import Bot, Dispatcher
 from aiogram.dispatcher.middlewares.base import BaseMiddleware
+from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Message, Update
 
 from bot.config import load_settings
@@ -62,10 +63,23 @@ class InboxMiddleware(BaseMiddleware):
         return await handler(event, data)
 
 
+class ErrorHandlingMiddleware(BaseMiddleware):
+    async def __call__(self, handler, event: Update, data: dict):
+        try:
+            return await handler(event, data)
+        except Exception:
+            logger.exception("Handler error")
+            message: Message | None = getattr(event, "message", None)
+            if message:
+                await message.answer("Произошла ошибка. Я записал детали. Попробуй ещё раз.")
+            return None
+
+
 def build_dispatcher(session_factory) -> Dispatcher:
-    dispatcher = Dispatcher()
+    dispatcher = Dispatcher(storage=MemoryStorage())
     dispatcher.update.middleware(DbSessionMiddleware(session_factory))
     dispatcher.update.middleware(InboxMiddleware())
+    dispatcher.update.middleware(ErrorHandlingMiddleware())
     dispatcher.include_router(router)
     return dispatcher
 

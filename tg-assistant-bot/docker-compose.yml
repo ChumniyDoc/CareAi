@@ -25,7 +25,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-    command: sh -c "ollama serve & sleep 2; ollama pull ${OLLAMA_MODEL}; wait"
+    entrypoint: ["/bin/sh", "-c"]
+    command: "ollama serve & sleep 2; ollama pull ${OLLAMA_MODEL}; wait"
     restart: unless-stopped
 
   app:

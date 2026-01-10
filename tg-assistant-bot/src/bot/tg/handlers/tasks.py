@@ -12,13 +12,27 @@ from bot.services.tasks import parse_task_text
 
 router = Router()
 
+STATE_AWAIT_TASK = "awaiting_task_text"
+
+
+def _strip_command_prefix(text: str, command: str) -> str:
+    lowered = text.lower()
+    if lowered.startswith(f"/{command}"):
+        return text[len(f"/{command}") :].strip()
+    if lowered.startswith(f"{command} "):
+        return text[len(command) :].strip()
+    return text
+
 
 @router.message(Command("add"))
 async def add_task(message: Message, session: AsyncSession) -> None:
     if not message.text:
         return
-    text = message.text.replace("/add", "", 1).strip()
+    text = _strip_command_prefix(message.text, "add")
     if not text:
+        user = await repo.get_or_create_user(session, message.from_user.id)
+        await repo.set_user_state(session, user.id, STATE_AWAIT_TASK)
+        await session.commit()
         await message.answer("Укажи текст задачи: /add купить молоко")
         return
     user = await repo.get_or_create_user(session, message.from_user.id)
@@ -26,6 +40,7 @@ async def add_task(message: Message, session: AsyncSession) -> None:
     title, due_at = parse_task_text(text, settings.tz)
     task = await repo.create_task(session, user.id, title, due_at)
     await repo.add_task_reminder(session, task)
+    await repo.clear_user_state(session, user.id)
     await session.commit()
     await message.answer(f"Задача #{task.id} добавлена.")
 
@@ -65,6 +80,29 @@ async def natural_task(message: Message, session: AsyncSession) -> None:
         return
     text = message.text or ""
     user = await repo.get_or_create_user(session, message.from_user.id)
+    state = await repo.get_user_state(session, user.id)
+    if state and state.state == STATE_AWAIT_TASK:
+        settings = load_settings()
+        title, due_at = parse_task_text(text, settings.tz)
+        task = await repo.create_task(session, user.id, title, due_at)
+        await repo.add_task_reminder(session, task)
+        await repo.clear_user_state(session, user.id)
+        await session.commit()
+        await message.answer(f"Задача #{task.id} добавлена.")
+        return
+    if text.lower() == "add":
+        await repo.set_user_state(session, user.id, STATE_AWAIT_TASK)
+        await session.commit()
+        await message.answer("Укажи текст задачи: /add купить молоко")
+        return
+    if text.lower().startswith("add "):
+        settings = load_settings()
+        title, due_at = parse_task_text(text[4:].strip(), settings.tz)
+        task = await repo.create_task(session, user.id, title, due_at)
+        await repo.add_task_reminder(session, task)
+        await session.commit()
+        await message.answer(f"Задача #{task.id} добавлена.")
+        return
     classification = classify_message(text)
     if classification.kind == "task":
         settings = load_settings()

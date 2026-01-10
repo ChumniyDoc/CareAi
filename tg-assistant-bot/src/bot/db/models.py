@@ -62,6 +62,14 @@ class UserSettings(Base):
     weekly_review_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class UserState(Base):
+    __tablename__ = "user_states"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    state: Mapped[str] = mapped_column(String(64))
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class InboxItem(Base):
     __tablename__ = "inbox_items"
 

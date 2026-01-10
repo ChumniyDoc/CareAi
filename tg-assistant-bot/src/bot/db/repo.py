@@ -255,3 +255,25 @@ async def update_pending_action_status(
     session: AsyncSession, action: models.PendingAction, status: str
 ) -> None:
     action.status = status
+
+
+async def get_user_state(session: AsyncSession, user_id: int) -> models.UserState | None:
+    result = await session.execute(select(models.UserState).where(models.UserState.user_id == user_id))
+    return result.scalar_one_or_none()
+
+
+async def set_user_state(session: AsyncSession, user_id: int, state: str) -> models.UserState:
+    existing = await get_user_state(session, user_id)
+    if existing:
+        existing.state = state
+        return existing
+    record = models.UserState(user_id=user_id, state=state)
+    session.add(record)
+    await session.flush()
+    return record
+
+
+async def clear_user_state(session: AsyncSession, user_id: int) -> None:
+    existing = await get_user_state(session, user_id)
+    if existing:
+        await session.delete(existing)
