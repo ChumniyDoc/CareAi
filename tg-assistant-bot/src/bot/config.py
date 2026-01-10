@@ -10,9 +10,7 @@ class Settings(BaseSettings):
 
     bot_token: str
     database_url: str
-    tz: str = "Asia/Almaty"
-    morning_time: str = "09:00"
-    evening_time: str = "21:30"
+    tz: str = "Europe/Moscow"
     weekly_review_time: str = "Sunday 18:00"
 
     def resolve_bot_token(self) -> str:

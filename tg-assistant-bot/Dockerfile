@@ -7,11 +7,10 @@ RUN adduser --disabled-password --gecos "" appuser
 WORKDIR /app
 
 COPY pyproject.toml /app/
+COPY src /app/src
 
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir .[test]
-
-COPY src /app/src
 COPY alembic.ini /app/alembic.ini
 COPY alembic /app/alembic
 COPY scripts /app/scripts

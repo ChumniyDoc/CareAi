@@ -57,8 +57,8 @@ pytest
 Через `.env`:
 - `BOT_TOKEN`
 - `DATABASE_URL`
-- `TZ` (по умолчанию Asia/Almaty)
-- `MORNING_TIME`, `EVENING_TIME`, `WEEKLY_REVIEW_TIME`
+- `TZ` (по умолчанию Europe/Moscow)
+- `WEEKLY_REVIEW_TIME`
 
 ## CI
 GitHub Actions запускает линт и тесты при пуше и PR.
