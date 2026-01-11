@@ -42,7 +42,7 @@ async def goal_add(message: Message, session: AsyncSession) -> None:
     await _goal_add(message, session)
 
 
-@router.message(F.text.regexp(r"^(?i)goal_add(\\s|$)"))
+@router.message(F.text.regexp(r"(?i)^goal_add(\\s|$)"))
 async def goal_add_alias(message: Message, session: AsyncSession) -> None:
     await _goal_add(message, session)
 

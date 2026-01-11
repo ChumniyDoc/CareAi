@@ -67,7 +67,7 @@ async def add_task_followup(message: Message, session: AsyncSession) -> None:
     await message.answer(f"Задача #{task.id} добавлена.")
 
 
-@router.message(F.text.regexp(r"^(?i)add(\\s|$)"))
+@router.message(F.text.regexp(r"(?i)^add(\\s|$)"))
 async def add_task_alias(message: Message, session: AsyncSession) -> None:
     if not message.text:
         return

@@ -47,6 +47,6 @@ async def dashboard(message: Message, session: AsyncSession) -> None:
     await _dashboard(message, session)
 
 
-@router.message(F.text.regexp(r"^(?i)dashboard(\\s|$)"))
+@router.message(F.text.regexp(r"(?i)^dashboard(\\s|$)"))
 async def dashboard_alias(message: Message, session: AsyncSession) -> None:
     await _dashboard(message, session)

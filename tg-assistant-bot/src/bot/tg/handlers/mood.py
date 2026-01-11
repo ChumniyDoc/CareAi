@@ -35,7 +35,7 @@ async def mood_start(message: Message, state: FSMContext) -> None:
     await _start_mood(message, state)
 
 
-@router.message(F.text.regexp(r"^(?i)mood(\\s|$)"))
+@router.message(F.text.regexp(r"(?i)^mood(\\s|$)"))
 async def mood_alias(message: Message, state: FSMContext) -> None:
     await _start_mood(message, state)
 

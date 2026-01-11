@@ -84,7 +84,7 @@ async def insights(message: Message, session: AsyncSession) -> None:
     await _handle_insights(message, session)
 
 
-@router.message(F.text.regexp(r"^(?i)insights(\\s|$)"))
+@router.message(F.text.regexp(r"(?i)^insights(\\s|$)"))
 async def insights_alias(message: Message, session: AsyncSession) -> None:
     await _handle_insights(message, session)
 

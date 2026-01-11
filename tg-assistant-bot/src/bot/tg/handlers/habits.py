@@ -55,7 +55,7 @@ async def habit_log(message: Message, session: AsyncSession) -> None:
     await _habit_log(message, session)
 
 
-@router.message(F.text.regexp(r"^(?i)habit_log(\\s|$)"))
+@router.message(F.text.regexp(r"(?i)^habit_log(\\s|$)"))
 async def habit_log_alias(message: Message, session: AsyncSession) -> None:
     await _habit_log(message, session)
 
